@@ -1,2 +1,2 @@
-AppVersion-0
+AppVersion-1 (2026-09-26 10:57:18)
 Añadida feature: developAñadida feature: develop
