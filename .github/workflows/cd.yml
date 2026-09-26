@@ -1,0 +1,49 @@
+name: CD Pipeline
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: [ "main" ]
+  workflow_dispatch:
+
+jobs:
+  update-version:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout del código
+        uses: actions/checkout@v4
+
+      - name: Incrementar versión en README.md
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          NOW=$(date +'%Y-%m-%d %H:%M:%S')
+          if grep -q "AppVersion-0" README.md; then
+            sed -i "s/AppVersion-0/AppVersion-1 ($NOW)/g" README.md
+          else
+            echo "AppVersion-1 ($NOW)" >> README.md
+          fi
+          git add README.md
+          git commit -m "chore: bump version a AppVersion-1 ($NOW)" || echo "Sin cambios"
+          git push
+
+  validate-prod:
+    runs-on: self-hosted
+    needs: update-version
+    steps:
+      - name: Validar PROD_TOKEN contra LOCAL_PROD_TOKEN
+        shell: powershell
+        env:
+          PROD_TOKEN: ${{ secrets.PROD_TOKEN }}
+        run: |
+          if ($env:PROD_TOKEN -eq $env:LOCAL_PROD_TOKEN) {
+            Write-Output "Los tokens de producción coinciden correctamente."
+            exit 0
+          } else {
+            Write-Error "Error: PROD_TOKEN no coincide con LOCAL_PROD_TOKEN."
+            exit 1
+          }
